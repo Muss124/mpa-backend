@@ -3,7 +3,6 @@ package com.itmo.mpa.service.impl
 import com.itmo.mpa.dto.request.StatusRequest
 import com.itmo.mpa.dto.response.StatusResponse
 import com.itmo.mpa.entity.Medicine
-import com.itmo.mpa.entity.Status
 import com.itmo.mpa.repository.MedicineRepository
 import com.itmo.mpa.repository.StateRepository
 import com.itmo.mpa.repository.StatusRepository
@@ -17,7 +16,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 
 @Service
 class DraftServiceImpl(
@@ -35,17 +33,13 @@ class DraftServiceImpl(
         logger.info("rewriteDraft: change existing draft or create one for patient with id - {}, " +
                 "by status draft request - {}", patientId, statusDraftRequest)
 
-        val (oldDraft, patient) = patientStatusEntityService.findDraftWithPatient(patientId)
-
         val state = stateRepository.findByIdOrNull(statusDraftRequest.stateId!!)
                 ?: throw StateNotFoundException(statusDraftRequest.stateId)
 
-        var statusEntity = oldDraft ?: Status().also { it.patient = patient }
-        statusEntity.submittedOn = Instant.now()
-        statusEntity.state = state
+        var statusEntity = patientStatusEntityService.createOrUpdateDraft(patientId, state)
+
         statusEntity.medicines = statusDraftRequest.medicines.mapTo(HashSet()) { requireMedicine(it) }
         statusEntity = statusRepository.save(statusEntity)
-
         statusEntity.diseaseAttributeValues = attributesEntityService
                 .replaceAttributeValues(
                         statusEntity,

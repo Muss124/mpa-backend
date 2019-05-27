@@ -11,6 +11,7 @@ import com.itmo.mpa.service.impl.entityservice.PatientStatusEntityService
 import com.itmo.mpa.service.mapping.toResponse
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 @Service
@@ -23,6 +24,7 @@ class StatusServiceImpl(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Transactional
     override fun commitDraft(patientId: Long): StatusResponse {
         logger.info("commitDraft: create new status from draft for patient with id {}", patientId)
 
