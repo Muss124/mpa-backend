@@ -6,5 +6,5 @@ data class AppropriateMedicineResponse(
         val medicine: MedicineResponse,
         val isNotRecommended: Boolean?,
         @field:JsonInclude(JsonInclude.Include.NON_NULL)
-        val errorCause: String?
+        val errorCause: List<String>?
 )

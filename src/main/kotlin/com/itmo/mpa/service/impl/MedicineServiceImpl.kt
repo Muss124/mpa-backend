@@ -24,20 +24,38 @@ class MedicineServiceImpl(
     override fun getAppropriateMedicine(patientId: Long): List<AppropriateMedicineResponse> {
         val (status, patient) = patientStatusEntityService.requireDraftWithPatient(patientId)
         return contraindicationsRepository.findAll()
-                .map { it.formResponse(patient, status) }
+                .groupBy { it.medicine.id }
+                .map { (_, contraindications) -> contraindications.formResponse(patient, status) }
                 .also { logger.debug("getAvailableTransitions: result {}", it) }
     }
 
-    private fun Contraindications.formResponse(
+    private fun List<Contraindications>.formResponse(
             patient: Patient,
             status: Status
     ): AppropriateMedicineResponse {
-        val medicineResponse = medicine.toResponse()
+        val medicineResponse = this.first().medicine.toResponse()
+        val notRecommendedResults = this.map { it.isNotRecommended(patient, status) }
+        val notRecommendedList = notRecommendedResults.map { it.first }
+        val errors = notRecommendedResults.mapNotNull { it.second }
+        val isNotRecommended = when {
+            errors.isNotEmpty() -> null
+            else -> notRecommendedList.contains(true)
+        }
+        val errorsList = when {
+            errors.isNotEmpty() -> errors
+            else -> null
+        }
+        return AppropriateMedicineResponse(medicineResponse, isNotRecommended, errorsList)
+    }
+
+    private fun Contraindications.isNotRecommended(
+            patient: Patient,
+            status: Status
+    ): Pair<Boolean?, String?> {
         return try {
-            val isContraindicated = predicateService.testPredicate(patient, status, predicate)
-            AppropriateMedicineResponse(medicineResponse, isNotRecommended = isContraindicated, errorCause = null)
+            predicateService.testPredicate(patient, status, predicate) to null
         } catch (e: Exception) {
-            AppropriateMedicineResponse(medicineResponse, isNotRecommended = null, errorCause = e.message)
+            null to e.message
         }
     }
 }
